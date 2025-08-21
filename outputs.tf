@@ -13,7 +13,7 @@ resource "local_file" "private_key" {
   file_permission = "0400"
 }
 
-# ✅ New outputs for flow logs
+# New outputs for flow logs
 output "flow_logs_bucket_name" {
   value = aws_s3_bucket.vpc_flow_logs.bucket
 }
