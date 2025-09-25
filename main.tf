@@ -1,3 +1,4 @@
+
 ###############################
 # Provider
 ###############################
@@ -89,38 +90,6 @@ resource "aws_security_group" "ssh" {
   }
 }
 
-###############################
-# 6b. Illumio Flow Log Access (HTTPS 443)
-###############################
-resource "aws_security_group_rule" "illumio_flow_logs" {
-  type              = "ingress"
-  from_port         = 443
-  to_port           = 443
-  protocol          = "tcp"
-  security_group_id = aws_security_group.ssh.id
-  cidr_blocks = [
-    # Illumio Control Plane (all regions)
-    "35.167.22.34/32",
-    "52.88.124.247/32",
-    "52.88.88.252/32",
-
-    # Illumio US West Data Plane (for specified regions)
-    "35.163.224.94/32",
-    "44.226.137.227/32",
-    "54.190.103.0/32",
-
-    # Illumio EU West (UK) Data Plane
-    "18.169.5.9/32",
-    "13.41.233.77/32",
-    "18.169.6.17/32",
-
-    # Illumio APAC Data Plane
-    "13.54.140.138/32",
-    "52.63.108.169/32",
-    "52.64.120.98/32"
-  ]
-  description = "Allow Illumio flow log access on TCP 443"
-}
 
 
 ###############################
@@ -144,7 +113,7 @@ resource "aws_key_pair" "my_key" {
 ###############################
 resource "aws_instance" "web" {
   ami                    = var.ami_id
-  instance_type          = "t3.nano"
+  instance_type          = "t3.micro"
   subnet_id              = aws_subnet.main.id
   key_name               = aws_key_pair.my_key.key_name
   vpc_security_group_ids = [aws_security_group.ssh.id]
@@ -166,7 +135,6 @@ resource "random_id" "suffix" {
 ###############################
 resource "aws_s3_bucket" "flow_logs_bucket" {
   bucket = "my-flow-logs-bucket-${random_id.suffix.hex}"
-  acl    = "private"
   tags = {
     Name = "Terraform-FlowLogs-Bucket"
   }
@@ -180,12 +148,14 @@ data "aws_caller_identity" "current" {}
 ###############################
 # 13. Bucket Policy for Flow Logs
 ###############################
+
 resource "aws_s3_bucket_policy" "flow_logs_policy" {
   bucket = aws_s3_bucket.flow_logs_bucket.id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      # 1. Allow VPC Flow Logs delivery
       {
         Sid       = "AWSLogDeliveryWrite"
         Effect    = "Allow"
@@ -205,8 +175,8 @@ resource "aws_s3_bucket_policy" "flow_logs_policy" {
         Action    = "s3:GetBucketAcl"
         Resource  = aws_s3_bucket.flow_logs_bucket.arn
       },
-      # This section allows ANY IAM user/role in the account (including future ones)
-      # to list and read objects from the flow logs bucket.
+
+      # 2. Allow all IAM users/roles in your account to read/list
       {
         Sid       = "AllowAccountWideRead"
         Effect    = "Allow"
@@ -221,6 +191,36 @@ resource "aws_s3_bucket_policy" "flow_logs_policy" {
           "${aws_s3_bucket.flow_logs_bucket.arn}",
           "${aws_s3_bucket.flow_logs_bucket.arn}/*"
         ]
+      },
+
+      # 3. Allow Illumio IPs to read objects (explicit external access) this is NOT REQUIRED by default but left in this script for demo ( SITUATIONAL AS TO ITS REQUIRMENT BUT NOT IN THIS LAB - NM )
+      {
+        Sid       = "AllowIllumioIPsRead"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = ["s3:GetObject", "s3:ListBucket"]
+        Resource  = [
+          "${aws_s3_bucket.flow_logs_bucket.arn}",
+          "${aws_s3_bucket.flow_logs_bucket.arn}/*"
+        ]
+        Condition = {
+          IpAddress = {
+            "aws:SourceIp" = [
+              "35.167.22.34/32",
+              "52.88.124.247/32",
+              "52.88.88.252/32",
+              "35.163.224.94/32",
+              "44.226.137.227/32",
+              "54.190.103.0/32",
+              "18.169.5.9/32",
+              "13.41.233.77/32",
+              "18.169.6.17/32",
+              "13.54.140.138/32",
+              "52.63.108.169/32",
+              "52.64.120.98/32"
+            ]
+          }
+        }
       }
     ]
   })
@@ -228,8 +228,11 @@ resource "aws_s3_bucket_policy" "flow_logs_policy" {
 
 
 ###############################
-# 14. VPC Flow Log
+# 14. VPC Flow Log 
 ###############################
+
+# This needs to be log format type 2,3,4,5 and is commented out currently and created manually after Terraform runs
+
 #resource "aws_flow_log" "vpc_flow_log" {
 #  vpc_id               = aws_vpc.main.id
 #  traffic_type         = "ALL"
@@ -237,8 +240,9 @@ resource "aws_s3_bucket_policy" "flow_logs_policy" {
 #  log_destination_type = "s3"
 #  max_aggregation_interval = 60
 #
-#  depends_on = [aws_s3_bucket_policy.flow_logs_policy]
+# depends_on = [aws_s3_bucket_policy.flow_logs_policy]
 #}
+
 
 ###############################
 # 15. Generate local key file
