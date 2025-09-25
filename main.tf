@@ -1,3 +1,4 @@
+
 ###############################
 # Provider
 ###############################
@@ -11,7 +12,7 @@ provider "aws" {
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
   tags = {
-    Name = "dev-vpc"
+    Name = "dev-VPC"
   }
 }
 
@@ -24,7 +25,7 @@ resource "aws_subnet" "main" {
   availability_zone       = "us-east-1a"
   map_public_ip_on_launch = true
   tags = {
-    Name = "dev-subnet"
+    Name = "dev-Subnet"
   }
 }
 
@@ -34,7 +35,7 @@ resource "aws_subnet" "main" {
 resource "aws_internet_gateway" "gw" {
   vpc_id = aws_vpc.main.id
   tags = {
-    Name = "Terraform-IGW"
+    Name = "IGW"
   }
 }
 
@@ -89,6 +90,8 @@ resource "aws_security_group" "ssh" {
   }
 }
 
+
+
 ###############################
 # 7. Generate SSH Key Pair (TLS)
 ###############################
@@ -116,7 +119,7 @@ resource "aws_instance" "web" {
   vpc_security_group_ids = [aws_security_group.ssh.id]
 
   tags = {
-    Name = "ec2-web"
+    Name = "CRM-EC2"
   }
 }
 
@@ -182,3 +185,86 @@ resource "aws_s3_bucket_policy" "flow_logs_policy" {
         }
         Action = [
           "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "${aws_s3_bucket.flow_logs_bucket.arn}",
+          "${aws_s3_bucket.flow_logs_bucket.arn}/*"
+        ]
+      },
+
+      # 3. Allow Illumio IPs to read objects (explicit external access) this is NOT REQUIRED by default but left in this script for demo ( SITUATIONAL AS TO ITS REQUIRMENT BUT NOT IN THIS LAB - NM )
+      {
+        Sid       = "AllowIllumioIPsRead"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = ["s3:GetObject", "s3:ListBucket"]
+        Resource  = [
+          "${aws_s3_bucket.flow_logs_bucket.arn}",
+          "${aws_s3_bucket.flow_logs_bucket.arn}/*"
+        ]
+        Condition = {
+          IpAddress = {
+            "aws:SourceIp" = [
+              "35.167.22.34/32",
+              "52.88.124.247/32",
+              "52.88.88.252/32",
+              "35.163.224.94/32",
+              "44.226.137.227/32",
+              "54.190.103.0/32",
+              "18.169.5.9/32",
+              "13.41.233.77/32",
+              "18.169.6.17/32",
+              "13.54.140.138/32",
+              "52.63.108.169/32",
+              "52.64.120.98/32"
+            ]
+          }
+        }
+      }
+    ]
+  })
+}
+
+
+###############################
+# 14. VPC Flow Log 
+###############################
+
+# This needs to be log format type 2,3,4,5 and is commented out currently and created manually after Terraform runs
+
+#resource "aws_flow_log" "vpc_flow_log" {
+#  vpc_id               = aws_vpc.main.id
+#  traffic_type         = "ALL"
+#  log_destination      = aws_s3_bucket.flow_logs_bucket.arn
+#  log_destination_type = "s3"
+#  max_aggregation_interval = 60
+#
+# depends_on = [aws_s3_bucket_policy.flow_logs_policy]
+#}
+
+
+###############################
+# 15. Generate local key file
+###############################
+resource "local_file" "private_key_pem" {
+  content         = tls_private_key.example.private_key_pem
+  filename        = "${path.module}/my-keypair.pem"
+  file_permission = "0600"
+}
+
+###############################
+# 16. Null resource to ensure post-provision actions
+###############################
+resource "null_resource" "post_setup" {
+  provisioner "local-exec" {
+    command = <<EOT
+      echo "Private key saved at my-keypair.pem with 600 permissions"
+    EOT
+  }
+
+  depends_on = [
+    aws_instance.web,
+    local_file.private_key_pem
+  ]
+}
