@@ -22,11 +22,12 @@ resource "local_file" "private_key_pem" {
 }
 
 ###############################
-# 2. Security Group (Allow SSH) - shared
+# 2. Security Groups (Allow SSH) - separate for dev and prod
 ###############################
-resource "aws_security_group" "ssh" {
-  name        = "my-sg"
-  description = "Allow SSH"
+
+resource "aws_security_group" "dev_ssh" {
+  name        = "dev-sg"
+  description = "Allow SSH for dev"
   vpc_id      = aws_vpc.dev.id
 
   ingress {
@@ -44,7 +45,31 @@ resource "aws_security_group" "ssh" {
   }
 
   tags = {
-    Name = "ssh-sg"
+    Name = "dev-sg"
+  }
+}
+
+resource "aws_security_group" "prod_ssh" {
+  name        = "prod-sg"
+  description = "Allow SSH for prod"
+  vpc_id      = aws_vpc.prod.id
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "prod-sg"
   }
 }
 
@@ -98,7 +123,7 @@ resource "aws_instance" "dev_crm" {
   instance_type          = "t3.micro"
   subnet_id              = aws_subnet.dev.id
   key_name               = aws_key_pair.my_key.key_name
-  vpc_security_group_ids = [aws_security_group.ssh.id]
+  vpc_security_group_ids = [aws_security_group.dev_ssh.id]
 
   tags = {
     Name = "CRM-EC2"
@@ -110,7 +135,7 @@ resource "aws_instance" "dev_db" {
   instance_type          = "t3.micro"
   subnet_id              = aws_subnet.dev.id
   key_name               = aws_key_pair.my_key.key_name
-  vpc_security_group_ids = [aws_security_group.ssh.id]
+  vpc_security_group_ids = [aws_security_group.dev_ssh.id]
 
   tags = {
     Name = "DB-EC2"
@@ -167,7 +192,7 @@ resource "aws_instance" "prod_crm" {
   instance_type          = "t3.micro"
   subnet_id              = aws_subnet.prod.id
   key_name               = aws_key_pair.my_key.key_name
-  vpc_security_group_ids = [aws_security_group.ssh.id]
+  vpc_security_group_ids = [aws_security_group.prod_ssh.id]
 
   tags = {
     Name = "CRM-EC2"
@@ -179,7 +204,7 @@ resource "aws_instance" "prod_db" {
   instance_type          = "t3.micro"
   subnet_id              = aws_subnet.prod.id
   key_name               = aws_key_pair.my_key.key_name
-  vpc_security_group_ids = [aws_security_group.ssh.id]
+  vpc_security_group_ids = [aws_security_group.prod_ssh.id]
 
   tags = {
     Name = "DB-EC2"
