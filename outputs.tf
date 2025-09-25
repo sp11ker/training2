@@ -8,7 +8,7 @@ output "private_key_pem" {
 }
 
 resource "local_file" "private_key" {
-  content         = tls_private_key.example.private_key_pem
-  filename        = "${path.module}/my-keypair.pem"
+  content  = tls_private_key.example.private_key_pem
+  filename = "${path.module}/my-keypair.pem"
   file_permission = "0400"
 }
