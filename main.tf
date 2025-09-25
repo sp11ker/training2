@@ -1,29 +1,74 @@
 ###############################
-# PROVIDER
+# Provider
 ###############################
-
 provider "aws" {
-  region = var.aws_region
+  region = "us-east-1"
 }
 
 ###############################
-# SHARED RESOURCES
+# 1. VPC
 ###############################
-
-resource "tls_private_key" "example" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
+resource "aws_vpc" "main" {
+  cidr_block = "10.0.0.0/16"
+  tags = {
+    Name = "dev-vpc"
+  }
 }
 
-resource "aws_key_pair" "my_key" {
-  key_name   = "my-keypair"
-  public_key = tls_private_key.example.public_key_openssh
+###############################
+# 2. Subnet
+###############################
+resource "aws_subnet" "main" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.1.0/24"
+  availability_zone       = "us-east-1a"
+  map_public_ip_on_launch = true
+  tags = {
+    Name = "dev-subnet"
+  }
 }
 
+###############################
+# 3. Internet Gateway
+###############################
+resource "aws_internet_gateway" "gw" {
+  vpc_id = aws_vpc.main.id
+  tags = {
+    Name = "Terraform-IGW"
+  }
+}
+
+###############################
+# 4. Route Table
+###############################
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.gw.id
+  }
+
+  tags = {
+    Name = "Terraform-Public-RouteTable"
+  }
+}
+
+###############################
+# 5. Route Table Association
+###############################
+resource "aws_route_table_association" "a" {
+  subnet_id      = aws_subnet.main.id
+  route_table_id = aws_route_table.public.id
+}
+
+###############################
+# 6. Security Group (Allow SSH)
+###############################
 resource "aws_security_group" "ssh" {
   name        = "my-sg"
   description = "Allow SSH"
-  vpc_id      = aws_vpc.dev.id  # Initially attached to dev; reused manually for prod
+  vpc_id      = aws_vpc.main.id
 
   ingress {
     from_port   = 22
@@ -45,192 +90,95 @@ resource "aws_security_group" "ssh" {
 }
 
 ###############################
-# VPC: DEV
+# 7. Generate SSH Key Pair (TLS)
 ###############################
-
-resource "aws_vpc" "dev" {
-  cidr_block = "10.0.0.0/16"
-  tags = {
-    Name = "dev"
-  }
+resource "tls_private_key" "example" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
 }
 
-resource "aws_subnet" "dev" {
-  vpc_id                  = aws_vpc.dev.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = "us-east-1a"
-  map_public_ip_on_launch = true
-  tags = {
-    Name = "dev-subnet"
-  }
+###############################
+# 8. AWS Key Pair from TLS
+###############################
+resource "aws_key_pair" "my_key" {
+  key_name   = "my-keypair"
+  public_key = tls_private_key.example.public_key_openssh
 }
 
-resource "aws_internet_gateway" "dev" {
-  vpc_id = aws_vpc.dev.id
-  tags = {
-    Name = "dev-igw"
-  }
-}
-
-resource "aws_route_table" "dev" {
-  vpc_id = aws_vpc.dev.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.dev.id
-  }
-
-  tags = {
-    Name = "dev-rt"
-  }
-}
-
-resource "aws_route_table_association" "dev" {
-  subnet_id      = aws_subnet.dev.id
-  route_table_id = aws_route_table.dev.id
-}
-
-resource "aws_instance" "web_dev" {
+###############################
+# 9. EC2 Instance
+###############################
+resource "aws_instance" "web" {
   ami                    = var.ami_id
   instance_type          = "t3.micro"
-  subnet_id              = aws_subnet.dev.id
+  subnet_id              = aws_subnet.main.id
   key_name               = aws_key_pair.my_key.key_name
   vpc_security_group_ids = [aws_security_group.ssh.id]
 
   tags = {
-    Name = "web-dev"
-  }
-}
-
-resource "aws_instance" "db_dev" {
-  ami                    = var.ami_id
-  instance_type          = "t3.micro"
-  subnet_id              = aws_subnet.dev.id
-  key_name               = aws_key_pair.my_key.key_name
-  vpc_security_group_ids = [aws_security_group.ssh.id]
-
-  tags = {
-    Name = "db-dev"
+    Name = "ec2-web"
   }
 }
 
 ###############################
-# VPC: PROD
+# 10. Random suffix for bucket
 ###############################
-
-resource "aws_vpc" "prod" {
-  cidr_block = "10.1.0.0/16"
-  tags = {
-    Name = "prod"
-  }
+resource "random_id" "suffix" {
+  byte_length = 4
 }
 
-resource "aws_subnet" "prod" {
-  vpc_id                  = aws_vpc.prod.id
-  cidr_block              = "10.1.1.0/24"
-  availability_zone       = "us-east-1a"
-  map_public_ip_on_launch = true
+###############################
+# 11. S3 Bucket for VPC Flow Logs (force us-east-1)
+###############################
+resource "aws_s3_bucket" "flow_logs_bucket" {
+  bucket = "my-flow-logs-bucket-${random_id.suffix.hex}"
   tags = {
-    Name = "prod-subnet"
-  }
-}
-
-resource "aws_internet_gateway" "prod" {
-  vpc_id = aws_vpc.prod.id
-  tags = {
-    Name = "prod-igw"
-  }
-}
-
-resource "aws_route_table" "prod" {
-  vpc_id = aws_vpc.prod.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.prod.id
-  }
-
-  tags = {
-    Name = "prod-rt"
-  }
-}
-
-resource "aws_route_table_association" "prod" {
-  subnet_id      = aws_subnet.prod.id
-  route_table_id = aws_route_table.prod.id
-}
-
-# Reuse same SG for prod manually by setting VPC ID to prod's VPC
-resource "aws_security_group" "ssh_prod" {
-  name        = "my-sg-prod"
-  description = "Allow SSH"
-  vpc_id      = aws_vpc.prod.id
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "Terraform-SSH-SG-PROD"
-  }
-}
-
-resource "aws_instance" "web_prod" {
-  ami                    = var.ami_id
-  instance_type          = "t3.micro"
-  subnet_id              = aws_subnet.prod.id
-  key_name               = aws_key_pair.my_key.key_name
-  vpc_security_group_ids = [aws_security_group.ssh_prod.id]
-
-  tags = {
-    Name = "web-prod"
-  }
-}
-
-resource "aws_instance" "db_prod" {
-  ami                    = var.ami_id
-  instance_type          = "t3.micro"
-  subnet_id              = aws_subnet.prod.id
-  key_name               = aws_key_pair.my_key.key_name
-  vpc_security_group_ids = [aws_security_group.ssh_prod.id]
-
-  tags = {
-    Name = "db-prod"
+    Name = "Terraform-FlowLogs-Bucket"
   }
 }
 
 ###############################
-# Save Private Key Locally
+# 12. Current AWS Account
 ###############################
-
-resource "local_file" "private_key" {
-  content         = tls_private_key.example.private_key_pem
-  filename        = "${path.module}/my-keypair.pem"
-  file_permission = "0400"
-}
+data "aws_caller_identity" "current" {}
 
 ###############################
-# Null Resource (Post Setup)
+# 13. Bucket Policy for Flow Logs
 ###############################
 
-resource "null_resource" "post_setup" {
-  provisioner "local-exec" {
-    command = <<EOT
-      echo "Private key saved at my-keypair.pem with 400 permissions"
-    EOT
-  }
+resource "aws_s3_bucket_policy" "flow_logs_policy" {
+  bucket = aws_s3_bucket.flow_logs_bucket.id
 
-  depends_on = [
-    local_file.private_key
-  ]
-}
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      # 1. Allow VPC Flow Logs delivery
+      {
+        Sid       = "AWSLogDeliveryWrite"
+        Effect    = "Allow"
+        Principal = { Service = "vpc-flow-logs.amazonaws.com" }
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.flow_logs_bucket.arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/*"
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = "bucket-owner-full-control"
+          }
+        }
+      },
+      {
+        Sid       = "AWSLogDeliveryAclCheck"
+        Effect    = "Allow"
+        Principal = { Service = "vpc-flow-logs.amazonaws.com" }
+        Action    = "s3:GetBucketAcl"
+        Resource  = aws_s3_bucket.flow_logs_bucket.arn
+      },
+
+      # 2. Allow all IAM users/roles in your account to read/list
+      {
+        Sid       = "AllowAccountWideRead"
+        Effect    = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action = [
+          "s3:GetObject",
