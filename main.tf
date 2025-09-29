@@ -213,7 +213,6 @@ resource "aws_instance" "web-prod" {
   subnet_id              = aws_subnet.prod.id                      
   key_name               = aws_key_pair.my_key.key_name
   vpc_security_group_ids = [aws_security_group.prod_ssh.id] 
-
   tags = {
     Name = "web"
     Role = "web"
