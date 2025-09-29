@@ -118,7 +118,7 @@ resource "aws_route_table_association" "dev" {
   route_table_id = aws_route_table.dev.id
 }
 
-resource "aws_instance" "dev_crm" {
+resource "aws_instance" "web-dev" {
   ami                    = var.ami_id
   instance_type          = "t3.micro"
   subnet_id              = aws_subnet.dev.id
@@ -126,11 +126,13 @@ resource "aws_instance" "dev_crm" {
   vpc_security_group_ids = [aws_security_group.dev_ssh.id]
 
   tags = {
-    Name = "crm-ec2"
+    Name = "web"
+    Role = "web"
+    App = "pos"
   }
 }
 
-resource "aws_instance" "dev_db" {
+resource "aws_instance" "proc-dev" {
   ami                    = var.ami_id
   instance_type          = "t3.micro"
   subnet_id              = aws_subnet.dev.id
@@ -138,7 +140,23 @@ resource "aws_instance" "dev_db" {
   vpc_security_group_ids = [aws_security_group.dev_ssh.id]
 
   tags = {
-    Name = "db-ec2"
+    Name = "proc"
+    Role = "proc"
+    App = "pos"
+  }
+}
+
+resource "aws_instance" "db-dev" {
+  ami                    = var.ami_id
+  instance_type          = "t3.micro"
+  subnet_id              = aws_subnet.dev.id
+  key_name               = aws_key_pair.my_key.key_name
+  vpc_security_group_ids = [aws_security_group.dev_ssh.id]
+
+  tags = {
+    Name = "db"
+    Role = "db"
+    App = "pos"
   }
 }
 
@@ -187,27 +205,45 @@ resource "aws_route_table_association" "prod" {
   route_table_id = aws_route_table.prod.id
 }
 
-resource "aws_instance" "prod_crm" {
+resource "aws_instance" "web-prod" {
   ami                    = var.ami_id
   instance_type          = "t3.micro"
-  subnet_id              = aws_subnet.prod.id
+  subnet_id              = aws_subnet.dev.id
   key_name               = aws_key_pair.my_key.key_name
-  vpc_security_group_ids = [aws_security_group.prod_ssh.id]
+  vpc_security_group_ids = [aws_security_group.dev_ssh.id]
 
   tags = {
-    Name = "crm-ec2"
+    Name = "web"
+    Role = "web"
+    App = "finance"
   }
 }
 
-resource "aws_instance" "prod_db" {
+resource "aws_instance" "proc-prod" {
   ami                    = var.ami_id
   instance_type          = "t3.micro"
-  subnet_id              = aws_subnet.prod.id
+  subnet_id              = aws_subnet.dev.id
   key_name               = aws_key_pair.my_key.key_name
-  vpc_security_group_ids = [aws_security_group.prod_ssh.id]
+  vpc_security_group_ids = [aws_security_group.dev_ssh.id]
 
   tags = {
-    Name = "db-ec2"
+    Name = "proc"
+    Role = "proc"
+    App = "finance"
+  }
+}
+
+resource "aws_instance" "db-prod" {
+  ami                    = var.ami_id
+  instance_type          = "t3.micro"
+  subnet_id              = aws_subnet.dev.id
+  key_name               = aws_key_pair.my_key.key_name
+  vpc_security_group_ids = [aws_security_group.dev_ssh.id]
+
+  tags = {
+    Name = "db"
+    Role = "db"
+    App = "finance"
   }
 }
 
