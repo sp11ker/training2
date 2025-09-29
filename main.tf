@@ -210,42 +210,36 @@ resource "aws_route_table_association" "prod" {
 resource "aws_instance" "web-prod" {
   ami                    = var.ami_id
   instance_type          = "t3.micro"
-  subnet_id              = aws_subnet.dev.id
+  subnet_id              = aws_subnet.prod.id                      
   key_name               = aws_key_pair.my_key.key_name
-  vpc_security_group_ids = [aws_security_group.dev_ssh.id]
+  vpc_security_group_ids = [aws_security_group.prod_ssh.id] 
 
   tags = {
     Name = "web"
     Role = "web"
-    App = "finance"
+    App  = "finance"
   }
 }
 
 resource "aws_instance" "proc-prod" {
   ami                    = var.ami_id
   instance_type          = "t3.micro"
-  subnet_id              = aws_subnet.dev.id
+  subnet_id              = aws_subnet.prod.id 
   key_name               = aws_key_pair.my_key.key_name
-  vpc_security_group_ids = [aws_security_group.dev_ssh.id]
-
+  vpc_security_group_ids = [aws_security_group.prod_ssh.id] 
   tags = {
     Name = "proc"
     Role = "proc"
-    App = "finance"
+    App  = "finance"
   }
 }
 
 resource "aws_instance" "db-prod" {
   ami                    = var.ami_id
   instance_type          = "t3.micro"
-  subnet_id              = aws_subnet.dev.id
+  subnet_id              = aws_subnet.prod.id 
   key_name               = aws_key_pair.my_key.key_name
-  vpc_security_group_ids = [aws_security_group.dev_ssh.id]
-
-  tags = {
-    Name = "db"
-    Role = "db"
-    App = "finance"
+  vpc_security_group_ids = [aws_security_group.prod_ssh.id]   
   }
 }
 
