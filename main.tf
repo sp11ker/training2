@@ -126,7 +126,7 @@ resource "aws_instance" "dev_crm" {
   vpc_security_group_ids = [aws_security_group.dev_ssh.id]
 
   tags = {
-    Name = "CRM-EC2"
+    Name = "crm-ec2"
   }
 }
 
@@ -138,7 +138,7 @@ resource "aws_instance" "dev_db" {
   vpc_security_group_ids = [aws_security_group.dev_ssh.id]
 
   tags = {
-    Name = "DB-EC2"
+    Name = "db-ec2"
   }
 }
 
@@ -195,7 +195,7 @@ resource "aws_instance" "prod_crm" {
   vpc_security_group_ids = [aws_security_group.prod_ssh.id]
 
   tags = {
-    Name = "CRM-EC2"
+    Name = "crm-ec2"
   }
 }
 
@@ -207,7 +207,7 @@ resource "aws_instance" "prod_db" {
   vpc_security_group_ids = [aws_security_group.prod_ssh.id]
 
   tags = {
-    Name = "DB-EC2"
+    Name = "db-ec2"
   }
 }
 
