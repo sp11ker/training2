@@ -130,6 +130,7 @@ resource "aws_instance" "web-dev" {
     Name = "web"
     Role = "web"
     App = "pos"
+    Env = "dev"
   }
 }
 
@@ -144,6 +145,7 @@ resource "aws_instance" "proc-dev" {
     Name = "proc"
     Role = "proc"
     App = "pos"
+    Env = "dev"
   }
 }
 
@@ -158,6 +160,7 @@ resource "aws_instance" "db-dev" {
     Name = "db"
     Role = "db"
     App = "pos"
+    Env = "dev"
   }
 }
 
@@ -216,7 +219,8 @@ resource "aws_instance" "web-prod" {
   tags = {
     Name = "web"
     Role = "web"
-    App  = "finance"
+    App = "finance"
+    Env = "prod"
   }
 }
 
@@ -229,7 +233,8 @@ resource "aws_instance" "proc-prod" {
   tags = {
     Name = "proc"
     Role = "proc"
-    App  = "finance"
+    App = "finance"
+    Env = "prod"
   }
 }
 
@@ -242,7 +247,8 @@ resource "aws_instance" "db-prod" {
   tags = {
     Name = "db"
     Role = "db"
-    App  = "finance"
+    App = "finance"
+    Env = "prod"
   }
 }
 
