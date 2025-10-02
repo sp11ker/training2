@@ -3,7 +3,7 @@ provider "aws" {
 }
 
 ###############################
-# 1. Key Pair (Shared)
+# 1. Key Pair (shared)
 ###############################
 resource "tls_private_key" "example" {
   algorithm = "RSA"
@@ -22,41 +22,46 @@ resource "local_file" "private_key_pem" {
 }
 
 ###############################
-# 2. Reusable Module: VPC Networking
+# 2. VPCs and Networking
 ###############################
-# You can refactor this further into modules, but for now keeping inline per your request.
 
-# Define VPCs: it, dev, prod
+# --- IT VPC ---
 resource "aws_vpc" "it" {
   cidr_block = "10.2.0.0/16"
-  tags = {
-    Name = "it-vpc"
-  }
+  tags       = local.env_tags["it"]
 }
 
-resource "aws_vpc" "dev" {
-  cidr_block = "10.0.0.0/16"
-  tags = {
-    Name = "dev-vpc"
-  }
-}
-
-resource "aws_vpc" "prod" {
-  cidr_block = "10.1.0.0/16"
-  tags = {
-    Name = "prod-vpc"
-  }
-}
-
-# Subnets
 resource "aws_subnet" "it" {
   vpc_id                  = aws_vpc.it.id
   cidr_block              = "10.2.1.0/24"
   availability_zone       = "us-east-1a"
   map_public_ip_on_launch = true
-  tags = {
-    Name = "it-subnet"
+  tags                    = local.env_tags["it"]
+}
+
+resource "aws_internet_gateway" "it" {
+  vpc_id = aws_vpc.it.id
+  tags   = local.env_tags["it"]
+}
+
+resource "aws_route_table" "it" {
+  vpc_id = aws_vpc.it.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.it.id
   }
+  tags = local.env_tags["it"]
+}
+
+resource "aws_route_table_association" "it" {
+  subnet_id      = aws_subnet.it.id
+  route_table_id = aws_route_table.it.id
+}
+
+# --- DEV VPC ---
+resource "aws_vpc" "dev" {
+  cidr_block = "10.0.0.0/16"
+  tags       = local.env_tags["dev"]
 }
 
 resource "aws_subnet" "dev" {
@@ -64,58 +69,12 @@ resource "aws_subnet" "dev" {
   cidr_block              = "10.0.1.0/24"
   availability_zone       = "us-east-1a"
   map_public_ip_on_launch = true
-  tags = {
-    Name = "dev-subnet"
-  }
-}
-
-resource "aws_subnet" "prod" {
-  vpc_id                  = aws_vpc.prod.id
-  cidr_block              = "10.1.1.0/24"
-  availability_zone       = "us-east-1a"
-  map_public_ip_on_launch = true
-  tags = {
-    Name = "prod-subnet"
-  }
-}
-
-# Internet Gateways
-resource "aws_internet_gateway" "it" {
-  vpc_id = aws_vpc.it.id
-  tags = {
-    Name = "it-igw"
-  }
+  tags                    = local.env_tags["dev"]
 }
 
 resource "aws_internet_gateway" "dev" {
   vpc_id = aws_vpc.dev.id
-  tags = {
-    Name = "dev-igw"
-  }
-}
-
-resource "aws_internet_gateway" "prod" {
-  vpc_id = aws_vpc.prod.id
-  tags = {
-    Name = "prod-igw"
-  }
-}
-
-# Route Tables & Associations
-resource "aws_route_table" "it" {
-  vpc_id = aws_vpc.it.id
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.it.id
-  }
-  tags = {
-    Name = "it-rt"
-  }
-}
-
-resource "aws_route_table_association" "it" {
-  subnet_id      = aws_subnet.it.id
-  route_table_id = aws_route_table.it.id
+  tags   = local.env_tags["dev"]
 }
 
 resource "aws_route_table" "dev" {
@@ -124,14 +83,31 @@ resource "aws_route_table" "dev" {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.dev.id
   }
-  tags = {
-    Name = "dev-rt"
-  }
+  tags = local.env_tags["dev"]
 }
 
 resource "aws_route_table_association" "dev" {
   subnet_id      = aws_subnet.dev.id
   route_table_id = aws_route_table.dev.id
+}
+
+# --- PROD VPC ---
+resource "aws_vpc" "prod" {
+  cidr_block = "10.1.0.0/16"
+  tags       = local.env_tags["prod"]
+}
+
+resource "aws_subnet" "prod" {
+  vpc_id                  = aws_vpc.prod.id
+  cidr_block              = "10.1.1.0/24"
+  availability_zone       = "us-east-1a"
+  map_public_ip_on_launch = true
+  tags                    = local.env_tags["prod"]
+}
+
+resource "aws_internet_gateway" "prod" {
+  vpc_id = aws_vpc.prod.id
+  tags   = local.env_tags["prod"]
 }
 
 resource "aws_route_table" "prod" {
@@ -140,9 +116,7 @@ resource "aws_route_table" "prod" {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.prod.id
   }
-  tags = {
-    Name = "prod-rt"
-  }
+  tags = local.env_tags["prod"]
 }
 
 resource "aws_route_table_association" "prod" {
@@ -151,105 +125,95 @@ resource "aws_route_table_association" "prod" {
 }
 
 ###############################
-# 3. Security Groups (Allow SSH)
+# 3. Security Groups
 ###############################
+
 resource "aws_security_group" "it_ssh" {
   name        = "it-sg"
-  description = "Allow SSH for IT"
+  description = "Allow SSH"
   vpc_id      = aws_vpc.it.id
-
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = {
-    Name = "it-sg"
-  }
+  tags = local.env_tags["it"]
 }
 
 resource "aws_security_group" "dev_ssh" {
   name        = "dev-sg"
-  description = "Allow SSH for dev"
+  description = "Allow SSH"
   vpc_id      = aws_vpc.dev.id
-
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = {
-    Name = "dev-sg"
-  }
+  tags = local.env_tags["dev"]
 }
 
 resource "aws_security_group" "prod_ssh" {
   name        = "prod-sg"
-  description = "Allow SSH for prod"
+  description = "Allow SSH"
   vpc_id      = aws_vpc.prod.id
-
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = {
-    Name = "prod-sg"
-  }
+  tags = local.env_tags["prod"]
 }
 
 ###############################
 # 4. EC2 Instances
 ###############################
-# IT - 1 EC2
-resource "aws_instance" "it_instance" {
+
+resource "aws_instance" "it_instance_1" {
   ami                    = var.ami_id
   instance_type          = "t3.micro"
   subnet_id              = aws_subnet.it.id
   key_name               = aws_key_pair.my_key.key_name
   vpc_security_group_ids = [aws_security_group.it_ssh.id]
-  tags = {
-    Name = "it-instance"
-  }
+  tags                   = local.ec2_tags["it"]["it_instance_1"]
 }
 
-# DEV - 2 EC2
+resource "aws_instance" "it_instance_2" {
+  ami                    = var.ami_id
+  instance_type          = "t3.micro"
+  subnet_id              = aws_subnet.it.id
+  key_name               = aws_key_pair.my_key.key_name
+  vpc_security_group_ids = [aws_security_group.it_ssh.id]
+  tags                   = local.ec2_tags["it"]["it_instance_2"]
+}
+
 resource "aws_instance" "dev_instance_1" {
   ami                    = var.ami_id
   instance_type          = "t3.micro"
   subnet_id              = aws_subnet.dev.id
   key_name               = aws_key_pair.my_key.key_name
   vpc_security_group_ids = [aws_security_group.dev_ssh.id]
-  tags = {
-    Name = "dev-instance-1"
-  }
+  tags                   = local.ec2_tags["dev"]["dev_instance_1"]
 }
 
 resource "aws_instance" "dev_instance_2" {
@@ -258,21 +222,16 @@ resource "aws_instance" "dev_instance_2" {
   subnet_id              = aws_subnet.dev.id
   key_name               = aws_key_pair.my_key.key_name
   vpc_security_group_ids = [aws_security_group.dev_ssh.id]
-  tags = {
-    Name = "dev-instance-2"
-  }
+  tags                   = local.ec2_tags["dev"]["dev_instance_2"]
 }
 
-# PROD - 2 EC2
 resource "aws_instance" "prod_instance_1" {
   ami                    = var.ami_id
   instance_type          = "t3.micro"
   subnet_id              = aws_subnet.prod.id
   key_name               = aws_key_pair.my_key.key_name
   vpc_security_group_ids = [aws_security_group.prod_ssh.id]
-  tags = {
-    Name = "prod-instance-1"
-  }
+  tags                   = local.ec2_tags["prod"]["prod_instance_1"]
 }
 
 resource "aws_instance" "prod_instance_2" {
@@ -281,14 +240,13 @@ resource "aws_instance" "prod_instance_2" {
   subnet_id              = aws_subnet.prod.id
   key_name               = aws_key_pair.my_key.key_name
   vpc_security_group_ids = [aws_security_group.prod_ssh.id]
-  tags = {
-    Name = "prod-instance-2"
-  }
+  tags                   = local.ec2_tags["prod"]["prod_instance_2"]
 }
 
 ###############################
-# 5. Output Confirmation
+# 5. Output message (optional)
 ###############################
+
 resource "null_resource" "post_setup" {
   provisioner "local-exec" {
     command = "echo 'Private key saved at my-keypair.pem with 600 permissions'"
