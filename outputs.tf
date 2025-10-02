@@ -1,17 +1,12 @@
-###############################
-# EC2 Instance Public IPs (Dynamically by Name)
-###############################
-
 output "ec2_instances_public_ips" {
+  description = "Public IPs of all EC2 instances mapped by name"
   value = {
-    for instance in [
-      aws_instance.it_instance_1,
-      aws_instance.it_instance_2,
-      aws_instance.dev_instance_1,
-      aws_instance.dev_instance_2,
-      aws_instance.prod_instance_1,
-      aws_instance.prod_instance_2
-    ] :
-    instance.tags["Name"] => instance.public_ip
+    for name, instance in aws_instance.ec2 :
+    name => instance.public_ip
   }
+}
+
+output "private_key_pem" {
+  value     = tls_private_key.example.private_key_pem
+  sensitive = true
 }
