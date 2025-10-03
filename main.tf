@@ -3,14 +3,14 @@ provider "aws" {
 }
 
 ###############################
-# 1. Key Pair (shared)
+# 1. Shared Key Pair
 ###############################
 resource "tls_private_key" "example" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
-resource "aws_key_pair" "my_key" {
+resource "aws_key_pair" "shared_key" {
   key_name   = "my-keypair"
   public_key = tls_private_key.example.public_key_openssh
 }
@@ -22,88 +22,190 @@ resource "local_file" "private_key_pem" {
 }
 
 ###############################
-# 2. VPCs and Networking
+# 2. Locals for configuration
+###############################
+locals {
+  environments = ["staging", "dev", "prod"]
+
+  ec2_instances = {
+    "monitoring-staging-jumpbox" = {
+      app        = "monitoring"
+      env        = "staging"
+      role       = "jumpbox"
+      compliance = "medium"
+    },
+    "finance-dev-web" = {
+      app        = "finance"
+      env        = "dev"
+      role       = "web"
+      compliance = "low"
+    },
+    "finance-dev-proc" = {
+      app        = "finance"
+      env        = "dev"
+      role       = "proc"
+      compliance = "low"
+    },
+    "finance-dev-db" = {
+      app        = "finance"
+      env        = "dev"
+      role       = "db"
+      compliance = "low"
+    },
+    "crm-dev-node" = {
+      app        = "crm"
+      env        = "dev"
+      role       = "node"
+      compliance = "low"
+    },
+    "finance-prod-web" = {
+      app        = "finance"
+      env        = "prod"
+      role       = "web"
+      compliance = "high"
+    },
+    "finance-prod-proc" = {
+      app        = "finance"
+      env        = "prod"
+      role       = "proc"
+      compliance = "high"
+    },
+    "finance-prod-db" = {
+      app        = "finance"
+      env        = "prod"
+      role       = "db"
+      compliance = "high"
+    },
+    "crm-prod-node" = {
+      app        = "crm"
+      env        = "prod"
+      role       = "node"
+      compliance = "high"
+    }
+  }
+
+  # Mapping env to resources
+  vpc_map = {
+    staging = aws_vpc.staging.id,
+    dev     = aws_vpc.dev.id,
+    prod    = aws_vpc.prod.id
+  }
+
+  subnet_map = {
+    staging = aws_subnet.staging.id,
+    dev     = aws_subnet.dev.id,
+    prod    = aws_subnet.prod.id
+  }
+
+  sg_map = {
+    staging = aws_security_group.staging.id,
+    dev     = aws_security_group.dev.id,
+    prod    = aws_security_group.prod.id
+  }
+}
+
+###############################
+# 3. Networking: VPC, Subnet, IGW, RT, SG
 ###############################
 
-# IT VPC
-resource "aws_vpc" "it" {
-  cidr_block = "10.2.0.0/16"
-  tags = {
-    Name    = "it-vpc"
-    Env     = "it"
-    Company = "acme financing"
-  }
-}
-
-resource "aws_subnet" "it" {
-  vpc_id                  = aws_vpc.it.id
-  cidr_block              = "10.2.1.0/24"
-  availability_zone       = "us-east-1a"
-  map_public_ip_on_launch = true
-  tags = {
-    Name    = "it-subnet"
-    Env     = "it"
-    Company = "acme financing"
-  }
-}
-
-resource "aws_internet_gateway" "it" {
-  vpc_id = aws_vpc.it.id
-  tags = {
-    Name    = "it-igw"
-    Env     = "it"
-    Company = "acme financing"
-  }
-}
-
-resource "aws_route_table" "it" {
-  vpc_id = aws_vpc.it.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.it.id
-  }
-
-  tags = {
-    Name    = "it-rt"
-    Env     = "it"
-    Company = "acme financing"
-  }
-}
-
-resource "aws_route_table_association" "it" {
-  subnet_id      = aws_subnet.it.id
-  route_table_id = aws_route_table.it.id
-}
-
-# DEV VPC
-resource "aws_vpc" "dev" {
+# VPCs
+resource "aws_vpc" "staging" {
   cidr_block = "10.0.0.0/16"
+  tags = {
+    Name    = "staging-vpc"
+    Env     = "staging"
+    Company = "acme"
+  }
+}
+
+resource "aws_vpc" "dev" {
+  cidr_block = "10.1.0.0/16"
   tags = {
     Name    = "dev-vpc"
     Env     = "dev"
-    Company = "acme financing"
+    Company = "acme"
+  }
+}
+
+resource "aws_vpc" "prod" {
+  cidr_block = "10.2.0.0/16"
+  tags = {
+    Name    = "prod-vpc"
+    Env     = "prod"
+    Company = "acme"
+  }
+}
+
+# Subnets
+resource "aws_subnet" "staging" {
+  vpc_id                  = aws_vpc.staging.id
+  cidr_block              = "10.0.1.0/24"
+  availability_zone       = "us-east-1a"
+  map_public_ip_on_launch = true
+  tags = {
+    Name    = "staging-subnet"
+    Env     = "staging"
+    Company = "acme"
   }
 }
 
 resource "aws_subnet" "dev" {
   vpc_id                  = aws_vpc.dev.id
-  cidr_block              = "10.0.1.0/24"
+  cidr_block              = "10.1.1.0/24"
   availability_zone       = "us-east-1a"
   map_public_ip_on_launch = true
   tags = {
     Name    = "dev-subnet"
     Env     = "dev"
-    Company = "acme financing"
+    Company = "acme"
+  }
+}
+
+resource "aws_subnet" "prod" {
+  vpc_id                  = aws_vpc.prod.id
+  cidr_block              = "10.2.1.0/24"
+  availability_zone       = "us-east-1a"
+  map_public_ip_on_launch = true
+  tags = {
+    Name    = "prod-subnet"
+    Env     = "prod"
+    Company = "acme"
+  }
+}
+
+# Internet Gateways
+resource "aws_internet_gateway" "staging" {
+  vpc_id = aws_vpc.staging.id
+  tags = {
+    Name = "staging-ig"
   }
 }
 
 resource "aws_internet_gateway" "dev" {
   vpc_id = aws_vpc.dev.id
   tags = {
-    Name    = "dev-igw"
-    Env     = "dev"
-    Company = "acme financing"
+    Name = "dev-ig"
+  }
+}
+
+resource "aws_internet_gateway" "prod" {
+  vpc_id = aws_vpc.prod.id
+  tags = {
+    Name = "prod-ig"
+  }
+}
+
+# Route Tables and Associations
+resource "aws_route_table" "staging" {
+  vpc_id = aws_vpc.staging.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.staging.id
+  }
+
+  tags = {
+    Name = "staging-rt"
   }
 }
 
@@ -116,45 +218,7 @@ resource "aws_route_table" "dev" {
   }
 
   tags = {
-    Name    = "dev-rt"
-    Env     = "dev"
-    Company = "acme financing"
-  }
-}
-
-resource "aws_route_table_association" "dev" {
-  subnet_id      = aws_subnet.dev.id
-  route_table_id = aws_route_table.dev.id
-}
-
-# PROD VPC
-resource "aws_vpc" "prod" {
-  cidr_block = "10.1.0.0/16"
-  tags = {
-    Name    = "prod-vpc"
-    Env     = "prod"
-    Company = "acme financing"
-  }
-}
-
-resource "aws_subnet" "prod" {
-  vpc_id                  = aws_vpc.prod.id
-  cidr_block              = "10.1.1.0/24"
-  availability_zone       = "us-east-1a"
-  map_public_ip_on_launch = true
-  tags = {
-    Name    = "prod-subnet"
-    Env     = "prod"
-    Company = "acme financing"
-  }
-}
-
-resource "aws_internet_gateway" "prod" {
-  vpc_id = aws_vpc.prod.id
-  tags = {
-    Name    = "prod-igw"
-    Env     = "prod"
-    Company = "acme financing"
+    Name = "dev-rt"
   }
 }
 
@@ -167,10 +231,19 @@ resource "aws_route_table" "prod" {
   }
 
   tags = {
-    Name    = "prod-rt"
-    Env     = "prod"
-    Company = "acme financing"
+    Name = "prod-rt"
   }
+}
+
+# Route Table Associations
+resource "aws_route_table_association" "staging" {
+  subnet_id      = aws_subnet.staging.id
+  route_table_id = aws_route_table.staging.id
+}
+
+resource "aws_route_table_association" "dev" {
+  subnet_id      = aws_subnet.dev.id
+  route_table_id = aws_route_table.dev.id
 }
 
 resource "aws_route_table_association" "prod" {
@@ -178,14 +251,11 @@ resource "aws_route_table_association" "prod" {
   route_table_id = aws_route_table.prod.id
 }
 
-###############################
-# 3. Security Groups (SSH Access)
-###############################
-
-resource "aws_security_group" "it_ssh" {
-  name        = "it-sg"
-  description = "Allow SSH"
-  vpc_id      = aws_vpc.it.id
+# Security Groups
+resource "aws_security_group" "staging" {
+  name        = "staging-sg"
+  vpc_id      = aws_vpc.staging.id
+  description = "Allow SSH access"
 
   ingress {
     from_port   = 22
@@ -202,16 +272,14 @@ resource "aws_security_group" "it_ssh" {
   }
 
   tags = {
-    Name    = "it-sg"
-    Env     = "it"
-    Company = "acme financing"
+    Name = "staging-sg"
   }
 }
 
-resource "aws_security_group" "dev_ssh" {
+resource "aws_security_group" "dev" {
   name        = "dev-sg"
-  description = "Allow SSH"
   vpc_id      = aws_vpc.dev.id
+  description = "Allow SSH access"
 
   ingress {
     from_port   = 22
@@ -228,16 +296,14 @@ resource "aws_security_group" "dev_ssh" {
   }
 
   tags = {
-    Name    = "dev-sg"
-    Env     = "dev"
-    Company = "acme financing"
+    Name = "dev-sg"
   }
 }
 
-resource "aws_security_group" "prod_ssh" {
+resource "aws_security_group" "prod" {
   name        = "prod-sg"
-  description = "Allow SSH"
   vpc_id      = aws_vpc.prod.id
+  description = "Allow SSH access"
 
   ingress {
     from_port   = 22
@@ -254,63 +320,33 @@ resource "aws_security_group" "prod_ssh" {
   }
 
   tags = {
-    Name    = "prod-sg"
-    Env     = "prod"
-    Company = "acme financing"
+    Name = "prod-sg"
   }
 }
 
 ###############################
-# 4. EC2 Instances (Dynamic Creation)
+# 4. EC2 Instances
 ###############################
 
-variable "instances" {
-  default = {
-    "it-admin"  = { env = "it",   role = "admin" }
-    "it-backup" = { env = "it",   role = "backup" }
-    "dev-web"   = { env = "dev",  role = "web" }
-    "dev-db"    = { env = "dev",  role = "db" }
-    "prod-web"  = { env = "prod", role = "web" }
-    "prod-db"   = { env = "prod", role = "db" }
-  }
+variable "ami" {
+  default = "ami-0e95a5e2743ec9ec9"
 }
 
 resource "aws_instance" "ec2" {
-  for_each = var.instances
+  for_each = local.ec2_instances
 
-  ami                    = var.ami_id
-  instance_type          = "t3.micro"
-  subnet_id              = lookup({
-                            it   = aws_subnet.it.id,
-                            dev  = aws_subnet.dev.id,
-                            prod = aws_subnet.prod.id
-                          }, each.value.env)
-  key_name               = aws_key_pair.my_key.key_name
-  vpc_security_group_ids = [lookup({
-                                it   = aws_security_group.it_ssh.id,
-                                dev  = aws_security_group.dev_ssh.id,
-                                prod = aws_security_group.prod_ssh.id
-                              }, each.value.env)]
+  ami                    = var.ami
+  instance_type          = "t2.micro"
+  subnet_id              = local.subnet_map[each.value.env]
+  vpc_security_group_ids = [local.sg_map[each.value.env]]
+  key_name               = aws_key_pair.shared_key.key_name
 
   tags = {
-    Name    = each.key
-    Env     = each.value.env
-    Role    = each.value.role
-    Company = "acme financing"
-    Project = each.value.env == "it" ? "management" : "finance"
+    Name       = each.key
+    app        = each.value.app
+    env        = each.value.env
+    role       = each.value.role
+    compliance = each.value.compliance
+    company    = "acme"
   }
-}
-
-###############################
-# 5. Output message (optional)
-###############################
-
-resource "null_resource" "post_setup" {
-  provisioner "local-exec" {
-    command = "echo 'Private key saved at my-keypair.pem with 600 permissions'"
-  }
-
-  depends_on = [
-    local_file.private_key_pem
-  ]
 }
