@@ -1,12 +1,7 @@
 output "ec2_instances_public_ips" {
-  description = "Public IPs of all EC2 instances mapped by name"
+  description = "Public IP addresses of all EC2 instances"
   value = {
-    for name, instance in aws_instance.ec2 :
-    name => instance.public_ip
+    for instance_name, instance in aws_instance.ec2 :
+    instance_name => instance.public_ip
   }
-}
-
-output "private_key_pem" {
-  value     = tls_private_key.example.private_key_pem
-  sensitive = true
 }
