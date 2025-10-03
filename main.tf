@@ -212,6 +212,8 @@ resource "aws_route_table" "staging" {
 
   tags = {
     Name = "staging-rt"
+    Env = "staging"
+    Company = "acme"
   }
 }
 
@@ -225,6 +227,8 @@ resource "aws_route_table" "dev" {
 
   tags = {
     Name = "dev-rt"
+    Env = "dev"
+    Company = "acme"
   }
 }
 
@@ -238,6 +242,8 @@ resource "aws_route_table" "prod" {
 
   tags = {
     Name = "prod-rt"
+    Env = "prod"
+    Company = "acme"
   }
 }
 
