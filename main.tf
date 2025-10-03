@@ -178,6 +178,8 @@ resource "aws_internet_gateway" "staging" {
   vpc_id = aws_vpc.staging.id
   tags = {
     Name = "staging-ig"
+    Env = "staging"
+    Company = "acme"
   }
 }
 
@@ -185,6 +187,8 @@ resource "aws_internet_gateway" "dev" {
   vpc_id = aws_vpc.dev.id
   tags = {
     Name = "dev-ig"
+    Env = "dev"
+    Company = "acme"
   }
 }
 
@@ -192,6 +196,8 @@ resource "aws_internet_gateway" "prod" {
   vpc_id = aws_vpc.prod.id
   tags = {
     Name = "prod-ig"
+    Env = "prod"
+    Company = "acme"
   }
 }
 
