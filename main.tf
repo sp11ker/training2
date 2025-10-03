@@ -273,6 +273,8 @@ resource "aws_security_group" "staging" {
 
   tags = {
     Name = "staging-sg"
+    Env = "staging"
+    Company = "acme"
   }
 }
 
@@ -297,6 +299,8 @@ resource "aws_security_group" "dev" {
 
   tags = {
     Name = "dev-sg"
+    Env = "dev"
+    Company = "acme"
   }
 }
 
@@ -321,6 +325,8 @@ resource "aws_security_group" "prod" {
 
   tags = {
     Name = "prod-sg"
+    Env = "prod"
+    Company = "acme"
   }
 }
 
