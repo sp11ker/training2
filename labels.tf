@@ -50,11 +50,13 @@ locals {
         Role    = "web"
         Project = "finance"
         Name    = "prod-web"
+        Security  = "high"
       })
       prod_instance_2 = merge(local.env_tags["prod"], {
         Role    = "db"
         Project = "finance"
         Name    = "prod-db"
+        Security  = "high"
       })
     }
   }
