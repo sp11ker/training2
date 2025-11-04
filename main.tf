@@ -22,6 +22,23 @@ resource "local_file" "private_key_pem" {
 }
 
 ###############################
+# 1a. S3 Bucket for flows
+###############################
+# Generate a random 6-digit number
+resource "random_integer" "suffix" {
+  min = 100000
+  max = 999999
+}
+
+# Create the S3 bucket with default settings
+resource "aws_s3_bucket" "illumio_flows" {
+  bucket = "illumios3bucketforflows${random_integer.suffix.result}"
+  tags = {
+    Name        = "illumios3bucketforflows"
+  }
+}
+
+###############################
 # 2. Locals for configuration
 ###############################
 locals {
@@ -40,10 +57,10 @@ locals {
       role       = "web"
       compliance = "low"
     },
-    "finance-dev-proc" = {
+    "finance-dev-processing" = {
       app        = "finance"
       env        = "dev"
-      role       = "proc"
+      role       = "processing"
       compliance = "low"
     },
     "finance-dev-db" = {
@@ -52,10 +69,10 @@ locals {
       role       = "db"
       compliance = "low"
     },
-    "crm-dev-node" = {
+    "crm-dev-counter" = {
       app        = "crm"
       env        = "dev"
-      role       = "node"
+      role       = "counter"
       compliance = "low"
     },
     "finance-prod-web" = {
@@ -64,10 +81,10 @@ locals {
       role       = "web"
       compliance = "high"
     },
-    "finance-prod-proc" = {
+    "finance-prod-processing" = {
       app        = "finance"
       env        = "prod"
-      role       = "proc"
+      role       = "processing"
       compliance = "high"
     },
     "finance-prod-db" = {
@@ -76,10 +93,10 @@ locals {
       role       = "db"
       compliance = "high"
     },
-    "crm-prod-node" = {
+    "crm-prod-counter" = {
       app        = "crm"
       env        = "prod"
-      role       = "node"
+      role       = "counter"
       compliance = "high"
     }
   }
