@@ -130,8 +130,8 @@ resource "aws_vpc" "staging" {
   cidr_block = "10.0.0.0/16"
   tags = {
     Name    = "staging-vpc"
-    Env     = "staging"
-    Company = "acme"
+    env     = "staging"
+    company = "acme"
   }
 }
 
@@ -139,8 +139,8 @@ resource "aws_vpc" "dev" {
   cidr_block = "10.1.0.0/16"
   tags = {
     Name    = "dev-vpc"
-    Env     = "dev"
-    Company = "acme"
+    env     = "dev"
+    company = "acme"
   }
 }
 
@@ -148,8 +148,8 @@ resource "aws_vpc" "prod" {
   cidr_block = "10.2.0.0/16"
   tags = {
     Name    = "prod-vpc"
-    Env     = "prod"
-    Company = "acme"
+    env     = "prod"
+    company = "acme"
   }
 }
 
@@ -161,8 +161,8 @@ resource "aws_subnet" "staging" {
   map_public_ip_on_launch = true
   tags = {
     Name    = "staging-subnet"
-    Env     = "staging"
-    Company = "acme"
+    env     = "staging"
+    company = "acme"
   }
 }
 
@@ -173,8 +173,8 @@ resource "aws_subnet" "dev" {
   map_public_ip_on_launch = true
   tags = {
     Name    = "dev-subnet"
-    Env     = "dev"
-    Company = "acme"
+    env     = "dev"
+    company = "acme"
   }
 }
 
@@ -185,8 +185,8 @@ resource "aws_subnet" "prod" {
   map_public_ip_on_launch = true
   tags = {
     Name    = "prod-subnet"
-    Env     = "prod"
-    Company = "acme"
+    env     = "prod"
+    company = "acme"
   }
 }
 
@@ -195,8 +195,8 @@ resource "aws_internet_gateway" "staging" {
   vpc_id = aws_vpc.staging.id
   tags = {
     Name = "staging-ig"
-    Env = "staging"
-    Company = "acme"
+    env = "staging"
+    company = "acme"
   }
 }
 
@@ -204,8 +204,8 @@ resource "aws_internet_gateway" "dev" {
   vpc_id = aws_vpc.dev.id
   tags = {
     Name = "dev-ig"
-    Env = "dev"
-    Company = "acme"
+    env = "dev"
+    company = "acme"
   }
 }
 
@@ -213,8 +213,8 @@ resource "aws_internet_gateway" "prod" {
   vpc_id = aws_vpc.prod.id
   tags = {
     Name = "prod-ig"
-    Env = "prod"
-    Company = "acme"
+    env = "prod"
+    company = "acme"
   }
 }
 
@@ -229,8 +229,8 @@ resource "aws_route_table" "staging" {
 
   tags = {
     Name = "staging-rt"
-    Env = "staging"
-    Company = "acme"
+    env = "staging"
+    company = "acme"
   }
 }
 
@@ -244,8 +244,8 @@ resource "aws_route_table" "dev" {
 
   tags = {
     Name = "dev-rt"
-    Env = "dev"
-    Company = "acme"
+    env = "dev"
+    company = "acme"
   }
 }
 
@@ -259,8 +259,8 @@ resource "aws_route_table" "prod" {
 
   tags = {
     Name = "prod-rt"
-    Env = "prod"
-    Company = "acme"
+    env = "prod"
+    company = "acme"
   }
 }
 
@@ -302,8 +302,8 @@ resource "aws_security_group" "staging" {
 
   tags = {
     Name = "staging-sg"
-    Env = "staging"
-    Company = "acme"
+    env = "staging"
+    company = "acme"
   }
 }
 
@@ -328,8 +328,8 @@ resource "aws_security_group" "dev" {
 
   tags = {
     Name = "dev-sg"
-    Env = "dev"
-    Company = "acme"
+    env = "dev"
+    company = "acme"
   }
 }
 
@@ -354,8 +354,8 @@ resource "aws_security_group" "prod" {
 
   tags = {
     Name = "prod-sg"
-    Env = "prod"
-    Company = "acme"
+    env = "prod"
+    company = "acme"
   }
 }
 
